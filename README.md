@@ -6,6 +6,8 @@ It can be used by any AI agent, any developer, or any CI/local workflow that can
 
 ProbeQA gives coding agents a repeatable QA loop: inspect the diff, generate browser edge-case scenarios, run the app like a user, and leave durable tests behind.
 
+If you want AI coding agents to prove browser behavior before pushing code, star/watch the repo and share feedback in [Discussions](https://github.com/codewiser-io/probeqa/discussions).
+
 ## What This Is
 
 This is a local-first open-source npm CLI for any app repo configured in `probeqa.config.json`.

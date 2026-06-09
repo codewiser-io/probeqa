@@ -19,7 +19,7 @@ Why it is different:
 - It combines route audit, crawler discovery, scenario generation, and Puppeteer execution.
 - It is local-first and open source, so teams can run expensive browser checks before CI.
 
-## Best Launch Channels
+## Best Star Channels
 
 1. GitHub
    - Star/discovery starts here.
@@ -37,13 +37,13 @@ Why it is different:
    - Use targeted, non-spammy posts in builder and dev communities.
    - Ask for feedback, do not pretend it is a finished enterprise platform.
 
-5. Product Hunt
-   - Better after there is a small landing page, demo GIF, and npm publish fixed.
-   - Launch the concept as an open-source devtool, not a SaaS.
-
-6. AI/devtool communities
+5. AI/devtool communities
    - Cursor, Claude Code, Codex, Playwright/Puppeteer, QA, and testing communities.
    - The angle: "make agents prove browser behavior before pushing."
+
+6. GitHub-native sharing
+   - Share the release URL, discussion URL, and issue list.
+   - Ask people to star/watch if they want agent-first browser QA to exist.
 
 ## GitHub Repo Metadata
 
@@ -165,23 +165,27 @@ Repo: https://github.com/codewiser-io/probeqa
 
 I would like blunt feedback: what would this need before you would trust it as a required PR-end check?
 
-## Product Hunt Draft
+## GitHub Star Ask
 
-Name:
+Short:
 
-ProbeQA
+If you want AI coding agents to prove browser behavior before pushing code, star the repo and tell me what workflow this should support next:
 
-Tagline:
+https://github.com/codewiser-io/probeqa
 
-AI-generated browser QA for every PR
+Long:
 
-Description:
+I am building ProbeQA as an open-source library, not a SaaS launch.
 
-ProbeQA is an open-source Puppeteer QA harness for AI coding agents. It crawls app routes, audits missing browser coverage, generates scenario drafts from code changes, and runs real headed/headless browser checks before a PR ships.
+The goal is to make AI agents leave behind browser QA every time they touch an app: crawl routes, generate Puppeteer scenario drafts, run the browser, and commit the tests.
 
-Maker comment:
+If that sounds useful, a GitHub star/watch genuinely helps with discovery:
 
-I built ProbeQA after seeing AI coding agents move fast but skip durable QA. The goal is to make every agent act like a tester before pushing: crawl the app, generate Puppeteer scenarios, run the browser, and commit the tests so the QA gets better over time.
+https://github.com/codewiser-io/probeqa
+
+Feedback thread:
+
+https://github.com/codewiser-io/probeqa/discussions/5
 
 ## Submission Checklist
 
@@ -189,8 +193,10 @@ I built ProbeQA after seeing AI coding agents move fast but skip durable QA. The
 - [ ] Add a short demo GIF or screen recording.
 - [ ] Add GitHub social preview image.
 - [ ] Add 3-5 GitHub issues labeled `good first issue`.
+- [x] Enable GitHub Discussions.
+- [x] Create GitHub release.
+- [x] Create GitHub feedback discussion.
 - [ ] Post Show HN.
 - [ ] Publish DEV/Hashnode article.
 - [ ] Post X/LinkedIn.
 - [ ] Post targeted Reddit feedback thread.
-- [ ] Launch Product Hunt after landing page/demo assets exist.
