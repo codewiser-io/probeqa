@@ -1,24 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-const projectRoot = process.cwd();
-const configPath = path.join(projectRoot, 'probeqa.config.json');
-const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
-
-const { values } = parseArgs({
-  options: {
-    baseUrl: { type: 'string', default: process.env.AI_QA_BASE_URL },
-    maxPages: { type: 'string', default: '25' },
-    depth: { type: 'string', default: '2' },
-    generate: { type: 'boolean', default: false },
-    headless: { type: 'string', default: process.env.AI_QA_HEADLESS ?? 'true' },
-    out: { type: 'string' },
-  },
-});
-
-async function loadConfig() {
+async function loadConfig(projectRoot) {
+  const configPath = path.join(projectRoot, 'probeqa.config.json');
   const raw = await fs.readFile(configPath, 'utf8').catch(() => null);
   if (!raw) throw new Error('No probeqa.config.json found. Run "probeqa init" first.');
   try {
@@ -33,13 +20,13 @@ async function loadConfig() {
   }
 }
 
-function normalizeUrl(rawUrl) {
+export function normalizeUrl(rawUrl) {
   const url = new URL(rawUrl);
   url.hash = '';
   return url.href.replace(/\/$/, '');
 }
 
-function scenarioIdFor(url) {
+export function scenarioIdFor(url) {
   const parsed = new URL(url);
   const slug = parsed.pathname
     .replace(/^\/$/, 'home')
@@ -49,7 +36,7 @@ function scenarioIdFor(url) {
   return `crawl-${slug || 'home'}`;
 }
 
-function scenarioFor(pageInfo, baseUrl) {
+export function scenarioFor(pageInfo, baseUrl) {
   const parsedBase = new URL(baseUrl);
   const relativePath = pageInfo.url.replace(parsedBase.origin, '') || '/';
   const id = scenarioIdFor(pageInfo.url);
@@ -73,7 +60,8 @@ function scenarioFor(pageInfo, baseUrl) {
   };
 }
 
-async function loadPuppeteer() {
+async function loadPuppeteer(projectRoot) {
+  const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
   try {
     return (await import('puppeteer')).default;
   } catch {
@@ -85,12 +73,23 @@ async function loadPuppeteer() {
   }
 }
 
-async function main() {
-  const config = await loadConfig();
+export async function main(argv = process.argv.slice(2), projectRoot = process.cwd()) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      baseUrl: { type: 'string', default: process.env.AI_QA_BASE_URL },
+      maxPages: { type: 'string', default: '25' },
+      depth: { type: 'string', default: '2' },
+      generate: { type: 'boolean', default: false },
+      headless: { type: 'string', default: process.env.AI_QA_HEADLESS ?? 'true' },
+      out: { type: 'string' },
+    },
+  });
+  const config = await loadConfig(projectRoot);
   const baseUrl = values.baseUrl ?? config.projects.find((project) => project.baseUrl)?.baseUrl;
   if (!baseUrl) throw new Error('No base URL found. Pass --baseUrl or set a project baseUrl in probeqa.config.json.');
 
-  const puppeteer = await loadPuppeteer();
+  const puppeteer = await loadPuppeteer(projectRoot);
 
   const maxPages = Number.parseInt(values.maxPages, 10);
   const maxDepth = Number.parseInt(values.depth, 10);
@@ -203,7 +202,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.stack ?? error.message);
-  process.exitCode = 1;
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error.stack ?? error.message);
+    process.exitCode = 1;
+  });
+}

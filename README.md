@@ -188,6 +188,17 @@ npm login
 npm publish --access public
 ```
 
+## Development Checks
+
+ProbeQA uses Node's built-in test runner for package-level coverage:
+
+```bash
+npm test
+npm run pack:check
+```
+
+`npm run pack:check` runs the test suite and syntax checks before producing the npm package dry run. The GitHub CI workflow runs the same check on pushes and pull requests.
+
 ## PR-End Rule For AI Agents
 
 Before pushing every PR, the AI must either:

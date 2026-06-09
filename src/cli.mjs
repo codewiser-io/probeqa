@@ -19,15 +19,18 @@ if (command === '--help' || command === '-h' || command === 'help') {
 } else if (command === 'init') {
   await initProject();
 } else {
-  process.argv = [process.argv[0], process.argv[1], ...args];
-  if (command === 'list') process.argv.push('--list');
-  if (command === 'plan') process.argv.push('--plan');
+  const commandArgs = [...args];
+  if (command === 'list') commandArgs.push('--list');
+  if (command === 'plan') commandArgs.push('--plan');
   if (command === 'audit') {
-    await import('./audit.mjs');
+    const mod = await import('./audit.mjs');
+    await mod.main(commandArgs);
   } else if (command === 'crawl') {
-    await import('./crawl.mjs');
+    const mod = await import('./crawl.mjs');
+    await mod.main(commandArgs);
   } else {
-    await import(command === 'generate' || command === 'plan' ? './generate-scenarios.mjs' : './run-ai-qa.mjs');
+    const mod = await import(command === 'generate' || command === 'plan' ? './generate-scenarios.mjs' : './run-ai-qa.mjs');
+    await mod.main(commandArgs);
   }
 }
 

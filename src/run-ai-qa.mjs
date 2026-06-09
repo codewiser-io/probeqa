@@ -2,12 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-const projectRoot = process.cwd();
-const configPath = path.join(projectRoot, 'probeqa.config.json');
-
-async function loadConfig() {
+async function loadConfig(projectRoot) {
+  const configPath = path.join(projectRoot, 'probeqa.config.json');
   const raw = await fs.readFile(configPath, 'utf8').catch(() => null);
   if (!raw) return {};
   try {
@@ -17,22 +16,8 @@ async function loadConfig() {
   }
 }
 
-const { values, positionals } = parseArgs({
-  allowPositionals: true,
-  options: {
-    list: { type: 'boolean', default: false },
-    scenario: { type: 'string', short: 's' },
-    baseUrl: { type: 'string', default: process.env.AI_QA_BASE_URL ?? 'http://localhost:3000' },
-    backendUrl: { type: 'string', default: process.env.AI_QA_BACKEND_URL ?? 'http://localhost:3001' },
-    headless: { type: 'string', default: process.env.AI_QA_HEADLESS ?? 'true' },
-  },
-});
-
-const selectedScenario = values.scenario ?? positionals[0];
-const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
-
-async function loadScenarios() {
-  const config = await loadConfig();
+async function loadScenarios(projectRoot) {
+  const config = await loadConfig(projectRoot);
   const scenariosDir = path.resolve(projectRoot, config.scenariosDir ?? 'probeqa/scenarios');
   const entries = await fs.readdir(scenariosDir).catch((error) => {
     if (error.code === 'ENOENT') {
@@ -56,7 +41,7 @@ async function loadScenarios() {
   return scenarios;
 }
 
-function createExpect(page, pageErrors, networkFailures) {
+export function createExpect(page, pageErrors, networkFailures) {
   return {
     ok(value, message) {
       if (!value) throw new Error(message);
@@ -91,7 +76,7 @@ async function pageTextMatches(page, pattern) {
   }, pattern.source, pattern.flags);
 }
 
-async function clickByText(page, pattern) {
+export async function clickByText(page, pattern) {
   const handles = await page.$$('a, button, [role="button"], input[type="submit"]');
   for (const handle of handles) {
     const metadata = await handle.evaluate((element) => {
@@ -119,8 +104,8 @@ async function clickByText(page, pattern) {
   return null;
 }
 
-async function runScenario(puppeteer, scenario, options) {
-  const config = await loadConfig();
+async function runScenario(puppeteer, scenario, options, projectRoot) {
+  const config = await loadConfig(projectRoot);
   const artifactsDir = path.resolve(projectRoot, config.artifactsDir ?? 'probeqa/artifacts');
   const headless = options.headless !== 'false';
   const browser = await puppeteer.launch({
@@ -179,7 +164,8 @@ async function runScenario(puppeteer, scenario, options) {
   }
 }
 
-async function loadPuppeteer() {
+async function loadPuppeteer(projectRoot) {
+  const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
   try {
     return (await import('puppeteer')).default;
   } catch {
@@ -191,8 +177,20 @@ async function loadPuppeteer() {
   }
 }
 
-async function main() {
-  const scenarios = await loadScenarios();
+export async function main(argv = process.argv.slice(2), projectRoot = process.cwd()) {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      list: { type: 'boolean', default: false },
+      scenario: { type: 'string', short: 's' },
+      baseUrl: { type: 'string', default: process.env.AI_QA_BASE_URL ?? 'http://localhost:3000' },
+      backendUrl: { type: 'string', default: process.env.AI_QA_BACKEND_URL ?? 'http://localhost:3001' },
+      headless: { type: 'string', default: process.env.AI_QA_HEADLESS ?? 'true' },
+    },
+  });
+  const selectedScenario = values.scenario ?? positionals[0];
+  const scenarios = await loadScenarios(projectRoot);
   const runnable = selectedScenario
     ? scenarios.filter((scenario) => scenario.id === selectedScenario || scenario.file === selectedScenario)
     : scenarios;
@@ -208,12 +206,12 @@ async function main() {
     throw new Error(`No scenario matched ${selectedScenario}`);
   }
 
-  const puppeteer = await loadPuppeteer();
+  const puppeteer = await loadPuppeteer(projectRoot);
 
   const results = [];
   for (const scenario of runnable) {
     console.log(`\n[${scenario.id}] ${scenario.title}`);
-    const result = await runScenario(puppeteer, scenario, values);
+    const result = await runScenario(puppeteer, scenario, values, projectRoot);
     results.push({ scenario, result });
     const marker = result.status === 'passed' ? 'PASS' : 'FAIL';
     console.log(`${marker} ${scenario.id} (${result.ms}ms)`);
@@ -229,7 +227,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.stack ?? error.message);
-  process.exitCode = 1;
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error.stack ?? error.message);
+    process.exitCode = 1;
+  });
+}

@@ -27,8 +27,9 @@
     "qa:audit": "node src/cli.mjs audit",
     "qa:crawl": "node src/cli.mjs crawl",
     "qa:init": "node src/cli.mjs init",
+    "test": "node --test test/*.test.mjs",
     "pack:check": "npm pack --dry-run",
-    "prepack": "node --check src/cli.mjs && node --check src/run-ai-qa.mjs && node --check src/generate-scenarios.mjs && node --check src/audit.mjs && node --check src/crawl.mjs"
+    "prepack": "npm test && node --check src/cli.mjs && node --check src/run-ai-qa.mjs && node --check src/generate-scenarios.mjs && node --check src/audit.mjs && node --check src/crawl.mjs"
   },
   "keywords": [
     "ai-qa",
@@ -39,6 +40,7 @@
   ],
   "files": [
     "src/",
+    "test/",
     "examples/",
     "README.md",
     "AI_TESTER.md",

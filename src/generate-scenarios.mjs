@@ -2,22 +2,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const execFileAsync = promisify(execFile);
-const projectRoot = process.cwd();
-const configPath = path.join(projectRoot, 'probeqa.config.json');
 
-const { values } = parseArgs({
-  options: {
-    base: { type: 'string', default: process.env.AI_QA_DIFF_BASE ?? 'HEAD' },
-    plan: { type: 'boolean', default: false },
-    write: { type: 'boolean', default: true },
-    repo: { type: 'string', multiple: true },
-  },
-});
-
-async function loadProjects() {
+async function loadProjects(projectRoot) {
+  const configPath = path.join(projectRoot, 'probeqa.config.json');
   const raw = await fs.readFile(configPath, 'utf8').catch(() => '{"projects":[]}');
   let config;
   try {
@@ -41,7 +32,7 @@ async function git(repoPath, args) {
   }
 }
 
-async function collectChangedFiles(project) {
+async function collectChangedFiles(project, projectRoot, values) {
   const repoPath = path.resolve(projectRoot, project.path);
   const stat = await fs.stat(repoPath).catch(() => null);
   if (!stat?.isDirectory()) return [];
@@ -57,7 +48,7 @@ async function collectChangedFiles(project) {
     .map((file) => ({ projectName: project.name, projectKind: project.kind, repoPath, file }));
 }
 
-function routeFromFrontendPage(file) {
+export function routeFromFrontendPage(file) {
   if (!file.startsWith('pages/') || !/\.(tsx|ts|jsx|js)$/.test(file)) return null;
   if (file.includes('/api/')) return null;
   const basename = path.basename(file).replace(/\.(tsx|ts|jsx|js)$/, '');
@@ -71,7 +62,7 @@ function routeFromFrontendPage(file) {
   return route || '/';
 }
 
-function routeFromBackendApi(file) {
+export function routeFromBackendApi(file) {
   if (!file.startsWith('src/app/api/') || !file.endsWith('/route.ts')) return null;
   return `/${file}`
     .replace(/^\/src\/app/, '')
@@ -79,7 +70,7 @@ function routeFromBackendApi(file) {
     .replace(/\[(.+?)\]/g, ':$1');
 }
 
-function inferFlow(changes) {
+export function inferFlow(changes) {
   const frontendRoutes = changes.map((change) => routeFromFrontendPage(change.file)).filter(Boolean);
   const backendRoutes = changes.map((change) => routeFromBackendApi(change.file)).filter(Boolean);
   const frontendActions = changes.filter((change) => change.file.startsWith('src/utils/actions/'));
@@ -100,11 +91,11 @@ function inferFlow(changes) {
   };
 }
 
-function slugify(value) {
+export function slugify(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 72) || 'generated-flow';
 }
 
-function buildScenario(changes, flow) {
+export function buildScenario(changes, flow) {
   const date = new Date().toISOString().slice(0, 10);
   const primaryRoute = flow.frontendRoutes[0] ?? '/';
   const primaryApi = flow.backendRoutes[0] ?? '/api/health';
@@ -145,7 +136,7 @@ function buildScenario(changes, flow) {
   };
 }
 
-function buildPlan(changes, flow, scenario) {
+export function buildPlan(changes, flow, scenario) {
   const changedFiles = changes.map((change) => `- ${change.projectName}/${change.file}`).join('\n');
   return `AI QA generation plan
 
@@ -164,8 +155,17 @@ ${changedFiles || '- No changed files detected'}
 `;
 }
 
-async function main() {
-  const config = await loadProjects();
+export async function main(argv = process.argv.slice(2), projectRoot = process.cwd()) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      base: { type: 'string', default: process.env.AI_QA_DIFF_BASE ?? 'HEAD' },
+      plan: { type: 'boolean', default: false },
+      write: { type: 'boolean', default: true },
+      repo: { type: 'string', multiple: true },
+    },
+  });
+  const config = await loadProjects(projectRoot);
   const projects = config.projects;
   if (projects.length === 0) {
     throw new Error('No projects configured. Run "probeqa init" or add projects to probeqa.config.json.');
@@ -178,7 +178,7 @@ async function main() {
   if (selectedProjects.length === 0) {
     throw new Error(`No configured project matched: ${values.repo.join(', ')}`);
   }
-  const changes = (await Promise.all(selectedProjects.map(collectChangedFiles))).flat();
+  const changes = (await Promise.all(selectedProjects.map((project) => collectChangedFiles(project, projectRoot, values)))).flat();
   const flow = inferFlow(changes);
   const scenario = buildScenario(changes, flow);
   const plan = buildPlan(changes, flow, scenario);
@@ -197,7 +197,9 @@ async function main() {
   console.log(`Wrote ${path.relative(projectRoot, scenarioPath)}`);
 }
 
-main().catch((error) => {
-  console.error(error.stack ?? error.message);
-  process.exitCode = 1;
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error.stack ?? error.message);
+    process.exitCode = 1;
+  });
+}

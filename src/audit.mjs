@@ -1,17 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-const projectRoot = process.cwd();
-const configPath = path.join(projectRoot, 'probeqa.config.json');
-
-const { values } = parseArgs({
-  options: {
-    repo: { type: 'string', multiple: true },
-  },
-});
-
-async function loadConfig() {
+async function loadConfig(projectRoot) {
+  const configPath = path.join(projectRoot, 'probeqa.config.json');
   const raw = await fs.readFile(configPath, 'utf8').catch(() => null);
   if (!raw) throw new Error('No probeqa.config.json found. Run "probeqa init" first.');
   try {
@@ -25,7 +18,7 @@ async function loadConfig() {
   }
 }
 
-async function walk(dir) {
+export async function walk(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
   const files = [];
   for (const entry of entries) {
@@ -40,7 +33,7 @@ async function walk(dir) {
   return files;
 }
 
-function routeFromFrontendPage(file) {
+export function routeFromFrontendPage(file) {
   if (!file.startsWith('pages/') || !/\.(tsx|ts|jsx|js)$/.test(file)) return null;
   if (file.includes('/api/')) return null;
   const basename = path.basename(file).replace(/\.(tsx|ts|jsx|js)$/, '');
@@ -54,7 +47,7 @@ function routeFromFrontendPage(file) {
   return route || '/';
 }
 
-function routeFromBackendApi(file) {
+export function routeFromBackendApi(file) {
   if (!file.startsWith('src/app/api/') || !file.endsWith('/route.ts')) return null;
   return `/${file}`
     .replace(/^\/src\/app/, '')
@@ -62,7 +55,7 @@ function routeFromBackendApi(file) {
     .replace(/\[(.+?)\]/g, ':$1');
 }
 
-function classify(route) {
+export function classify(route) {
   if (/signup|login|auth|onboarding/i.test(route)) return 'auth/onboarding';
   if (/billing|payment|subscription|plan/i.test(route)) return 'billing';
   if (/admin|dashboard|organization|team/i.test(route)) return 'admin/org';
@@ -80,8 +73,14 @@ async function loadScenarioText(scenariosDir) {
   };
 }
 
-async function main() {
-  const config = await loadConfig();
+export async function main(argv = process.argv.slice(2), projectRoot = process.cwd()) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      repo: { type: 'string', multiple: true },
+    },
+  });
+  const config = await loadConfig(projectRoot);
   const selectedProjects = values.repo?.length
     ? config.projects.filter((project) =>
         values.repo.some((repo) => project.name.toLowerCase() === repo.toLowerCase() || project.path.includes(repo))
@@ -122,7 +121,9 @@ Uncovered routes: ${uncovered.length}
   }
 }
 
-main().catch((error) => {
-  console.error(error.stack ?? error.message);
-  process.exitCode = 1;
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error.stack ?? error.message);
+    process.exitCode = 1;
+  });
+}
