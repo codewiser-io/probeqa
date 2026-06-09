@@ -6,13 +6,13 @@
   "type": "module",
   "license": "MIT",
   "author": "Rushil Shah",
-  "homepage": "https://github.com/rushillshah/probeqa#readme",
+  "homepage": "https://github.com/codewiser-io/probeqa#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rushillshah/probeqa.git"
+    "url": "git+https://github.com/codewiser-io/probeqa.git"
   },
   "bugs": {
-    "url": "https://github.com/rushillshah/probeqa/issues"
+    "url": "https://github.com/codewiser-io/probeqa/issues"
   },
   "bin": {
     "probeqa": "src/cli.mjs",
