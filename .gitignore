@@ -3,3 +3,4 @@ probeqa/artifacts/
 artifacts/
 *.tgz
 .DS_Store
+.npmrc
