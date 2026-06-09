@@ -33,6 +33,12 @@ The next layer should be model-provider adapters that improve `qa:generate` with
 - Capture screenshots, console errors, and network failures when a scenario breaks.
 - Give teams a single lightweight convention that works across repos.
 
+## Links
+
+- Launch kit and sharing copy: [LAUNCH.md](LAUNCH.md)
+- AI tester role: [AI_TESTER.md](AI_TESTER.md)
+- Examples: [examples/](examples/)
+
 ## Setup
 
 ```bash
