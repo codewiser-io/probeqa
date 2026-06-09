@@ -1,0 +1,12 @@
+{
+  "projects": [
+    {
+      "name": "App",
+      "path": ".",
+      "kind": "app",
+      "baseUrl": "http://localhost:3000"
+    }
+  ],
+  "scenariosDir": "probeqa/scenarios",
+  "artifactsDir": "probeqa/artifacts"
+}

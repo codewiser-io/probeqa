@@ -1,0 +1,56 @@
+{
+  "name": "probeqa",
+  "version": "0.1.0",
+  "description": "AI-ready Puppeteer QA harness that generates and runs browser edge-case tests for any app.",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "author": "Rushil Shah",
+  "homepage": "https://github.com/rushillshah/probeqa#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rushillshah/probeqa.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rushillshah/probeqa/issues"
+  },
+  "bin": {
+    "probeqa": "src/cli.mjs",
+    "aiqa": "src/cli.mjs"
+  },
+  "scripts": {
+    "qa": "node src/cli.mjs run",
+    "qa:headed": "AI_QA_HEADLESS=false node src/cli.mjs run",
+    "qa:list": "node src/cli.mjs list",
+    "qa:generate": "node src/cli.mjs generate",
+    "qa:plan": "node src/cli.mjs plan",
+    "qa:audit": "node src/cli.mjs audit",
+    "qa:init": "node src/cli.mjs init",
+    "pack:check": "npm pack --dry-run",
+    "prepack": "node --check src/cli.mjs && node --check src/run-ai-qa.mjs && node --check src/generate-scenarios.mjs && node --check src/audit.mjs"
+  },
+  "keywords": [
+    "ai-qa",
+    "puppeteer",
+    "e2e",
+    "browser-testing",
+    "test-generation"
+  ],
+  "files": [
+    "src/",
+    "examples/",
+    "README.md",
+    "AI_TESTER.md",
+    "CONTRIBUTING.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "puppeteer": "^24.31.0"
+  },
+  "engines": {
+    "node": ">=20.17.0"
+  }
+}
