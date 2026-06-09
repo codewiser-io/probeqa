@@ -1,6 +1,6 @@
 {
   "name": "probeqa",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI-ready Puppeteer QA harness that generates and runs browser edge-case tests for any app.",
   "private": false,
   "type": "module",

@@ -60,6 +60,9 @@ async function collectChangedFiles(project) {
 function routeFromFrontendPage(file) {
   if (!file.startsWith('pages/') || !/\.(tsx|ts|jsx|js)$/.test(file)) return null;
   if (file.includes('/api/')) return null;
+  const basename = path.basename(file).replace(/\.(tsx|ts|jsx|js)$/, '');
+  if (basename.startsWith('_') || ['styles', 'style', 'constants', 'types'].includes(basename)) return null;
+  if (file.split('/').some((segment) => ['styles', '__tests__', '__mocks__'].includes(segment))) return null;
   let route = file
     .replace(/^pages/, '')
     .replace(/\.(tsx|ts|jsx|js)$/, '')
