@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -28,6 +29,7 @@ const { values, positionals } = parseArgs({
 });
 
 const selectedScenario = values.scenario ?? positionals[0];
+const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
 
 async function loadScenarios() {
   const config = await loadConfig();
@@ -177,6 +179,18 @@ async function runScenario(puppeteer, scenario, options) {
   }
 }
 
+async function loadPuppeteer() {
+  try {
+    return (await import('puppeteer')).default;
+  } catch {
+    try {
+      return projectRequire('puppeteer');
+    } catch (error) {
+      throw new Error(`Puppeteer is not installed. Run "npm install -D probeqa". Original error: ${error.message}`);
+    }
+  }
+}
+
 async function main() {
   const scenarios = await loadScenarios();
   const runnable = selectedScenario
@@ -194,17 +208,12 @@ async function main() {
     throw new Error(`No scenario matched ${selectedScenario}`);
   }
 
-  let puppeteer;
-  try {
-    puppeteer = await import('puppeteer');
-  } catch (error) {
-    throw new Error(`Puppeteer is not installed. Run "npm install -D probeqa". Original error: ${error.message}`);
-  }
+  const puppeteer = await loadPuppeteer();
 
   const results = [];
   for (const scenario of runnable) {
     console.log(`\n[${scenario.id}] ${scenario.title}`);
-    const result = await runScenario(puppeteer.default, scenario, values);
+    const result = await runScenario(puppeteer, scenario, values);
     results.push({ scenario, result });
     const marker = result.status === 'passed' ? 'PASS' : 'FAIL';
     console.log(`${marker} ${scenario.id} (${result.ms}ms)`);

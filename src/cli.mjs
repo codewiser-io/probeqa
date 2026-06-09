@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const [, , command = 'run', ...args] = process.argv;
-const commands = new Set(['run', 'list', 'generate', 'plan', 'audit', 'init']);
+const commands = new Set(['run', 'list', 'generate', 'plan', 'audit', 'crawl', 'init']);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packagePath = path.resolve(__dirname, '..', 'package.json');
 
@@ -14,7 +14,7 @@ if (command === '--help' || command === '-h' || command === 'help') {
   const pkg = JSON.parse(await fs.readFile(packagePath, 'utf8'));
   console.log(pkg.version);
 } else if (!commands.has(command)) {
-  console.error(`Unknown command "${command}". Use: probeqa init|run|list|generate|plan|audit`);
+  console.error(`Unknown command "${command}". Use: probeqa init|run|list|generate|plan|audit|crawl`);
   process.exitCode = 1;
 } else if (command === 'init') {
   await initProject();
@@ -24,6 +24,8 @@ if (command === '--help' || command === '-h' || command === 'help') {
   if (command === 'plan') process.argv.push('--plan');
   if (command === 'audit') {
     await import('./audit.mjs');
+  } else if (command === 'crawl') {
+    await import('./crawl.mjs');
   } else {
     await import(command === 'generate' || command === 'plan' ? './generate-scenarios.mjs' : './run-ai-qa.mjs');
   }
@@ -79,6 +81,7 @@ Usage:
   probeqa init
   probeqa plan [--repo <name>]
   probeqa audit [--repo <name>]
+  probeqa crawl [--baseUrl <url>] [--maxPages <n>] [--generate]
   probeqa generate [--repo <name>]
   probeqa run [--scenario <id>] [--baseUrl <url>]
   probeqa list

@@ -13,6 +13,7 @@ Start with:
 ```bash
 probeqa plan
 probeqa audit
+probeqa crawl --generate
 probeqa generate
 ```
 

@@ -1,6 +1,6 @@
 {
   "name": "probeqa",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "AI-ready Puppeteer QA harness that generates and runs browser edge-case tests for any app.",
   "private": false,
   "type": "module",
@@ -25,9 +25,10 @@
     "qa:generate": "node src/cli.mjs generate",
     "qa:plan": "node src/cli.mjs plan",
     "qa:audit": "node src/cli.mjs audit",
+    "qa:crawl": "node src/cli.mjs crawl",
     "qa:init": "node src/cli.mjs init",
     "pack:check": "npm pack --dry-run",
-    "prepack": "node --check src/cli.mjs && node --check src/run-ai-qa.mjs && node --check src/generate-scenarios.mjs && node --check src/audit.mjs"
+    "prepack": "node --check src/cli.mjs && node --check src/run-ai-qa.mjs && node --check src/generate-scenarios.mjs && node --check src/audit.mjs && node --check src/crawl.mjs"
   },
   "keywords": [
     "ai-qa",

@@ -14,6 +14,7 @@ It is not a hosted AI product and it is not a trained model. What exists now is:
 
 - A Puppeteer runner that opens a real browser and clicks through flows
 - A scenario format for PR-specific integration tests
+- A crawler that maps reachable public routes and UI affordances
 - A generator that reads changed files and creates scenario drafts
 - An AI tester role in `AI_TESTER.md` that tells agents how to generate edge-case scenarios
 - A place to keep those generated tests so they become part of integration QA
@@ -61,6 +62,7 @@ Run the QA scenarios:
 ```bash
 npx probeqa plan      # inspect changed files and proposed QA surface
 npx probeqa audit     # find routes without ProbeQA scenario coverage
+npx probeqa crawl     # crawl reachable same-origin pages into a route map
 npx probeqa generate  # write a generated scenario draft
 npx probeqa run       # headless
 AI_QA_HEADLESS=false npx probeqa run
@@ -74,6 +76,7 @@ Or add scripts to the consuming app:
   "scripts": {
     "qa:plan": "probeqa plan",
     "qa:audit": "probeqa audit",
+    "qa:crawl": "probeqa crawl",
     "qa:generate": "probeqa generate",
     "qa": "probeqa run",
     "qa:headed": "AI_QA_HEADLESS=false probeqa run"
@@ -81,9 +84,9 @@ Or add scripts to the consuming app:
 }
 ```
 
-## CodeVisor Setup
+## CodeWiser Setup
 
-Install ProbeQA in the CodeVisor app repo:
+Install ProbeQA in the CodeWiser app repo:
 
 ```bash
 npm install -D probeqa
@@ -96,7 +99,7 @@ Use a config like:
 {
   "projects": [
     {
-      "name": "CodeVisor",
+      "name": "CodeWiser",
       "path": ".",
       "kind": "app",
       "baseUrl": "http://localhost:3000"
@@ -125,6 +128,7 @@ Expected PR habit:
 ```bash
 npm run qa:plan
 npm run qa:audit
+npm run qa:crawl -- --generate
 npm run qa:generate
 npm run qa:headed
 npm run qa
@@ -191,7 +195,7 @@ Before pushing every PR, the AI must either:
 1. Add and run 3-7 Puppeteer scenarios for the changed user flows, or
 2. Add the scenarios and report the exact blocker that prevented running them.
 
-Scenarios live in the configured `scenariosDir`. Use `probeqa/scenarios/_template.mjs` after `probeqa init`, or run `npx probeqa generate --repo "CodeVisor"` to create a draft from one configured project. Use `AI_TESTER.md` for the tester mindset.
+Scenarios live in the configured `scenariosDir`. Use `probeqa/scenarios/_template.mjs` after `probeqa init`, or run `npx probeqa generate --repo "CodeWiser"` to create a draft from one configured project. Use `AI_TESTER.md` for the tester mindset.
 
 Prioritize edge cases the normal unit tests miss:
 
@@ -220,6 +224,7 @@ After ProbeQA is installed in an existing app, start with a route and edge-case 
 
 ```bash
 npx probeqa audit
+npx probeqa crawl --generate
 ```
 
 1. List critical flows: signup, login, onboarding, billing, admin, core app workflow.
