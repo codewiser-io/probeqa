@@ -13,6 +13,7 @@ import {
 } from '../src/audit.mjs';
 import { buildScenario, inferFlow, routeFromFrontendPage as generatedPageRoute } from '../src/generate-scenarios.mjs';
 import { normalizeUrl, scenarioFor, scenarioIdFor } from '../src/crawl.mjs';
+import { getBrowserLaunchArgs } from '../src/run-ai-qa.mjs';
 
 const execFileAsync = promisify(execFile);
 const cliPath = path.resolve('src/cli.mjs');
@@ -77,6 +78,24 @@ test('crawler helper normalizes URLs and writes deterministic scenario files', (
   assert.equal(scenario.fileName, 'crawl-privacy.mjs');
   assert.match(scenario.content, /Crawled public route \/privacy/);
   assert.match(scenario.content, /page.goto\(`\$\{baseUrl}\/privacy`/);
+});
+
+test('browser launch args disable Chromium sandbox in CI', () => {
+  assert.deepEqual(getBrowserLaunchArgs({ CI: 'true' }), [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+  ]);
+  assert.deepEqual(
+    getBrowserLaunchArgs({
+      CI: 'true',
+      PROBEQA_CHROME_ARGS: '--disable-dev-shm-usage --no-sandbox',
+    }),
+    ['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox']
+  );
+  assert.deepEqual(
+    getBrowserLaunchArgs({ CI: 'true', PROBEQA_NO_SANDBOX: 'false' }),
+    []
+  );
 });
 
 test('CLI init, list, and audit work in a consuming app repo', async () => {

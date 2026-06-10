@@ -76,6 +76,26 @@ async function pageTextMatches(page, pattern) {
   }, pattern.source, pattern.flags);
 }
 
+export function getBrowserLaunchArgs(env = process.env) {
+  const configuredArgs = (env.PROBEQA_CHROME_ARGS ?? '')
+    .split(/\s+/)
+    .map((arg) => arg.trim())
+    .filter(Boolean);
+  const shouldDisableSandbox =
+    env.PROBEQA_NO_SANDBOX === 'true' ||
+    (env.CI === 'true' && env.PROBEQA_NO_SANDBOX !== 'false');
+
+  if (!shouldDisableSandbox) return configuredArgs;
+
+  return [
+    ...new Set([
+      ...configuredArgs,
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+    ]),
+  ];
+}
+
 export async function clickByText(page, pattern) {
   const handles = await page.$$('a, button, [role="button"], input[type="submit"]');
   for (const handle of handles) {
@@ -110,6 +130,7 @@ async function runScenario(puppeteer, scenario, options, projectRoot) {
   const headless = options.headless !== 'false';
   const browser = await puppeteer.launch({
     headless,
+    args: getBrowserLaunchArgs(),
     defaultViewport: { width: 1440, height: 1000 },
   });
   const page = await browser.newPage();
