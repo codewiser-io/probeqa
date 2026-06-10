@@ -92,9 +92,9 @@ Or add scripts to the consuming app:
 }
 ```
 
-## CodeWiser Setup
+## App Repo Setup
 
-Install ProbeQA in the CodeWiser app repo:
+Install ProbeQA in any app repo:
 
 ```bash
 npm install -D probeqa
@@ -107,7 +107,7 @@ Use a config like:
 {
   "projects": [
     {
-      "name": "CodeWiser",
+      "name": "Web App",
       "path": ".",
       "kind": "app",
       "baseUrl": "http://localhost:3000"
@@ -214,7 +214,7 @@ Before pushing every PR, the AI must either:
 1. Add and run 3-7 Puppeteer scenarios for the changed user flows, or
 2. Add the scenarios and report the exact blocker that prevented running them.
 
-Scenarios live in the configured `scenariosDir`. Use `probeqa/scenarios/_template.mjs` after `probeqa init`, or run `npx probeqa generate --repo "CodeWiser"` to create a draft from one configured project. Use `AI_TESTER.md` for the tester mindset.
+Scenarios live in the configured `scenariosDir`. Use `probeqa/scenarios/_template.mjs` after `probeqa init`, or run `npx probeqa generate --repo "Web App"` to create a draft from one configured project. Use `AI_TESTER.md` for the tester mindset.
 
 Prioritize edge cases the normal unit tests miss:
 
