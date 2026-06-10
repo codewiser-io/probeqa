@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { getBrowserLaunchArgs } from './browser.mjs';
 
 async function loadConfig(projectRoot) {
   const configPath = path.join(projectRoot, 'probeqa.config.json');
@@ -105,6 +106,7 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
 
   const browser = await puppeteer.launch({
     headless: values.headless !== 'false',
+    args: getBrowserLaunchArgs(),
     defaultViewport: { width: 1440, height: 1000 },
   });
   const page = await browser.newPage();
