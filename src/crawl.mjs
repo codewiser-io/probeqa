@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getBrowserLaunchArgs } from './browser.mjs';
+import { loadBrowserRunner, resolveRunnerName } from './runners.mjs';
 
 async function loadConfig(projectRoot) {
   const configPath = path.join(projectRoot, 'probeqa.config.json');
@@ -61,19 +61,6 @@ export function scenarioFor(pageInfo, baseUrl) {
   };
 }
 
-async function loadPuppeteer(projectRoot) {
-  const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
-  try {
-    return (await import('puppeteer')).default;
-  } catch {
-    try {
-      return projectRequire('puppeteer');
-    } catch (error) {
-      throw new Error(`Puppeteer is not installed. Run "npm install -D probeqa". Original error: ${error.message}`);
-    }
-  }
-}
-
 export async function main(argv = process.argv.slice(2), projectRoot = process.cwd()) {
   const { values } = parseArgs({
     args: argv,
@@ -83,6 +70,7 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
       depth: { type: 'string', default: '2' },
       generate: { type: 'boolean', default: false },
       headless: { type: 'string', default: process.env.AI_QA_HEADLESS ?? 'true' },
+      runner: { type: 'string', default: process.env.PROBEQA_RUNNER },
       out: { type: 'string' },
     },
   });
@@ -90,7 +78,8 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
   const baseUrl = values.baseUrl ?? config.projects.find((project) => project.baseUrl)?.baseUrl;
   if (!baseUrl) throw new Error('No base URL found. Pass --baseUrl or set a project baseUrl in probeqa.config.json.');
 
-  const puppeteer = await loadPuppeteer(projectRoot);
+  const runnerName = resolveRunnerName(values.runner ?? config.runner);
+  const browserRunner = await loadBrowserRunner(projectRoot, runnerName);
 
   const maxPages = Number.parseInt(values.maxPages, 10);
   const maxDepth = Number.parseInt(values.depth, 10);
@@ -104,12 +93,11 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
 
   await fs.mkdir(artifactsDir, { recursive: true });
 
-  const browser = await puppeteer.launch({
+  const { browser, page } = await browserRunner.launch({
     headless: values.headless !== 'false',
     args: getBrowserLaunchArgs(),
-    defaultViewport: { width: 1440, height: 1000 },
+    viewport: { width: 1440, height: 1000 },
   });
-  const page = await browser.newPage();
 
   try {
     while (queue.length > 0 && pages.length < maxPages) {

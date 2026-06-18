@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getBrowserLaunchArgs } from './browser.mjs';
+import { loadBrowserRunner, resolveRunnerName } from './runners.mjs';
 
 async function loadConfig(projectRoot) {
   const configPath = path.join(projectRoot, 'probeqa.config.json');
@@ -107,16 +107,15 @@ export async function clickByText(page, pattern) {
   return null;
 }
 
-async function runScenario(puppeteer, scenario, options, projectRoot) {
+async function runScenario(browserRunner, scenario, options, projectRoot) {
   const config = await loadConfig(projectRoot);
   const artifactsDir = path.resolve(projectRoot, config.artifactsDir ?? 'probeqa/artifacts');
   const headless = options.headless !== 'false';
-  const browser = await puppeteer.launch({
+  const { browser, page } = await browserRunner.launch({
     headless,
     args: getBrowserLaunchArgs(),
-    defaultViewport: { width: 1440, height: 1000 },
+    viewport: { width: 1440, height: 1000 },
   });
-  const page = await browser.newPage();
 
   const pageErrors = [];
   const networkFailures = [];
@@ -168,19 +167,6 @@ async function runScenario(puppeteer, scenario, options, projectRoot) {
   }
 }
 
-async function loadPuppeteer(projectRoot) {
-  const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
-  try {
-    return (await import('puppeteer')).default;
-  } catch {
-    try {
-      return projectRequire('puppeteer');
-    } catch (error) {
-      throw new Error(`Puppeteer is not installed. Run "npm install -D probeqa". Original error: ${error.message}`);
-    }
-  }
-}
-
 export async function main(argv = process.argv.slice(2), projectRoot = process.cwd()) {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -191,8 +177,10 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
       baseUrl: { type: 'string', default: process.env.AI_QA_BASE_URL ?? 'http://localhost:3000' },
       backendUrl: { type: 'string', default: process.env.AI_QA_BACKEND_URL ?? 'http://localhost:3001' },
       headless: { type: 'string', default: process.env.AI_QA_HEADLESS ?? 'true' },
+      runner: { type: 'string', default: process.env.PROBEQA_RUNNER },
     },
   });
+  const config = await loadConfig(projectRoot);
   const selectedScenario = values.scenario ?? positionals[0];
   const scenarios = await loadScenarios(projectRoot);
   const runnable = selectedScenario
@@ -210,12 +198,13 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
     throw new Error(`No scenario matched ${selectedScenario}`);
   }
 
-  const puppeteer = await loadPuppeteer(projectRoot);
+  const runnerName = resolveRunnerName(values.runner ?? config.runner);
+  const browserRunner = await loadBrowserRunner(projectRoot, runnerName);
 
   const results = [];
   for (const scenario of runnable) {
     console.log(`\n[${scenario.id}] ${scenario.title}`);
-    const result = await runScenario(puppeteer, scenario, values, projectRoot);
+    const result = await runScenario(browserRunner, scenario, values, projectRoot);
     results.push({ scenario, result });
     const marker = result.status === 'passed' ? 'PASS' : 'FAIL';
     console.log(`${marker} ${scenario.id} (${result.ms}ms)`);
