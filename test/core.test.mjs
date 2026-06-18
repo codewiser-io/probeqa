@@ -13,7 +13,7 @@ import {
 } from '../src/audit.mjs';
 import { buildScenario, inferFlow, routeFromFrontendPage as generatedPageRoute } from '../src/generate-scenarios.mjs';
 import { normalizeUrl, scenarioFor, scenarioIdFor } from '../src/crawl.mjs';
-import { getBrowserLaunchArgs } from '../src/run-ai-qa.mjs';
+import { createExpect, getBrowserLaunchArgs } from '../src/run-ai-qa.mjs';
 
 const execFileAsync = promisify(execFile);
 const cliPath = path.resolve('src/cli.mjs');
@@ -66,6 +66,8 @@ test('generator infers changed surfaces and builds reviewable scenario drafts', 
   assert.match(scenario.fileName, /^generated-\d{4}-\d{2}-\d{2}-/);
   assert.match(scenario.content, /baseUrl}\$\{?\/signup|baseUrl}\/signup/);
   assert.match(scenario.content, /backendUrl.*\/api\/auth\/signup/);
+  assert.match(scenario.content, /return null/);
+  assert.match(scenario.content, /expect\.responseStatusIn/);
   assert.equal(generatedPageRoute('pages/_document.tsx'), null);
 });
 
@@ -95,6 +97,18 @@ test('browser launch args disable Chromium sandbox in CI', () => {
   assert.deepEqual(
     getBrowserLaunchArgs({ CI: 'true', PROBEQA_NO_SANDBOX: 'false' }),
     []
+  );
+});
+
+test('response assertions guard null responses before reading status', () => {
+  const expect = createExpect({}, [], []);
+  assert.throws(
+    () => expect.responseOk(null, 'Route did not return a successful response'),
+    /Route did not return a successful response: no response/
+  );
+  assert.throws(
+    () => expect.responseStatusIn(null, [200], 'Unexpected API status'),
+    /Unexpected API status: no response/
   );
 });
 
