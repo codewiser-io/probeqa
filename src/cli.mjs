@@ -85,7 +85,7 @@ Usage:
   probeqa plan [--repo <name>]
   probeqa audit [--repo <name>]
   probeqa crawl [--baseUrl <url>] [--maxPages <n>] [--generate]
-  probeqa generate [--repo <name>]
+  probeqa generate [--repo <name>] [--refine] [--provider openai|anthropic|local]
   probeqa run [--scenario <id>] [--baseUrl <url>]
   probeqa list
 
