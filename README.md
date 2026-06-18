@@ -72,6 +72,7 @@ npx probeqa plan      # inspect changed files and proposed QA surface
 npx probeqa audit     # find routes without ProbeQA scenario coverage
 npx probeqa crawl     # crawl reachable same-origin pages into a route map
 npx probeqa generate  # write a generated scenario draft
+npx probeqa generate --refine --provider openai
 npx probeqa run       # headless
 AI_QA_HEADLESS=false npx probeqa run
 npx probeqa list
@@ -143,6 +144,28 @@ npm run qa
 ```
 
 The generated scenario is a draft. The AI or developer should tighten it into real clicks, role states, and assertions before merging.
+
+## AI Refinement
+
+`probeqa generate` is deterministic by default. Add `--refine` to ask a configured provider to sharpen the generated scenario while keeping the output as plain committed Puppeteer source.
+
+```bash
+npx probeqa generate --refine --provider openai
+npx probeqa generate --refine --provider anthropic
+npx probeqa generate --refine --provider local
+```
+
+```json
+{
+  "aiRefinement": {
+    "enabled": false,
+    "provider": "local",
+    "endpoint": "http://localhost:11434/refine"
+  }
+}
+```
+
+OpenAI uses `OPENAI_API_KEY` by default. Anthropic uses `ANTHROPIC_API_KEY`. Local adapters use `aiRefinement.endpoint` or `PROBEQA_LOCAL_AI_URL`. If the provider is unavailable or missing credentials, ProbeQA keeps the deterministic generated scenario.
 
 ## GitHub Actions Example
 

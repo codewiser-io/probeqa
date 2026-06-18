@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { refineScenarioDraft } from './ai-adapters.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -19,6 +20,7 @@ async function loadProjects(projectRoot) {
   return {
     projects: Array.isArray(config.projects) ? config.projects : [],
     scenariosDir: config.scenariosDir ?? 'probeqa/scenarios',
+    aiRefinement: config.aiRefinement && typeof config.aiRefinement === 'object' ? config.aiRefinement : {},
   };
 }
 
@@ -163,6 +165,9 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
       plan: { type: 'boolean', default: false },
       write: { type: 'boolean', default: true },
       repo: { type: 'string', multiple: true },
+      refine: { type: 'boolean', default: false },
+      provider: { type: 'string' },
+      model: { type: 'string' },
     },
   });
   const config = await loadProjects(projectRoot);
@@ -180,12 +185,29 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
   }
   const changes = (await Promise.all(selectedProjects.map((project) => collectChangedFiles(project, projectRoot, values)))).flat();
   const flow = inferFlow(changes);
-  const scenario = buildScenario(changes, flow);
+  let scenario = buildScenario(changes, flow);
   const plan = buildPlan(changes, flow, scenario);
 
   console.log(plan);
 
   if (values.plan || values.write === false) return;
+
+  const refinement = await refineScenarioDraft({
+    scenario,
+    plan,
+    aiRefinement: config.aiRefinement,
+    overrides: {
+      enabled: values.refine || config.aiRefinement.enabled,
+      provider: values.provider,
+      model: values.model,
+    },
+  });
+  if (refinement.changed) {
+    scenario = refinement.scenario;
+    console.log(`Refined scenario with ${refinement.provider}`);
+  } else if (values.refine || config.aiRefinement.enabled) {
+    console.warn(`AI refinement skipped: ${refinement.reason}`);
+  }
 
   const scenariosDir = path.resolve(projectRoot, config.scenariosDir);
   await fs.mkdir(scenariosDir, { recursive: true });

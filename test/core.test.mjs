@@ -7,6 +7,11 @@ import { promisify } from 'node:util';
 import test from 'node:test';
 
 import {
+  buildProviderRequest,
+  extractScenarioText,
+  refineScenarioDraft,
+} from '../src/ai-adapters.mjs';
+import {
   classify,
   routeFromBackendApi as auditApiRoute,
   routeFromFrontendPage as auditPageRoute,
@@ -96,6 +101,64 @@ test('browser launch args disable Chromium sandbox in CI', () => {
     getBrowserLaunchArgs({ CI: 'true', PROBEQA_NO_SANDBOX: 'false' }),
     []
   );
+});
+
+test('AI refinement adapters fall back without API keys and accept local output', async () => {
+  const scenario = {
+    fileName: 'generated-flow.mjs',
+    content: `export default {
+  id: 'generated-flow',
+  async run() {}
+};
+`,
+  };
+
+  const fallback = await refineScenarioDraft({
+    scenario,
+    plan: 'Plan',
+    aiRefinement: { enabled: true, provider: 'openai' },
+    env: {},
+  });
+  assert.equal(fallback.changed, false);
+  assert.match(fallback.reason, /Missing OPENAI_API_KEY/);
+
+  const request = buildProviderRequest(
+    { provider: 'local', endpoint: 'http://localhost:11434/refine' },
+    'Prompt',
+    {}
+  );
+  assert.equal(request.ok, true);
+
+  const refined = await refineScenarioDraft({
+    scenario,
+    plan: 'Plan',
+    aiRefinement: { enabled: true, provider: 'local', endpoint: 'http://localhost:11434/refine' },
+    fetchImpl: async () => ({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({
+        scenario: `export default {
+  id: 'generated-flow',
+  async run({ page }) {
+    await page.goto('http://localhost:3000');
+  }
+};
+`,
+      }),
+    }),
+  });
+  assert.equal(refined.changed, true);
+  assert.match(refined.scenario.content, /page\.goto/);
+});
+
+test('AI adapter parser reads Anthropic content arrays', async () => {
+  const text = await extractScenarioText({
+    headers: { get: () => 'application/json' },
+    json: async () => ({
+      content: [{ type: 'text', text: 'export default { async run() {} };' }],
+    }),
+  });
+  assert.match(text, /export default/);
 });
 
 test('CLI init, list, and audit work in a consuming app repo', async () => {
