@@ -8,6 +8,8 @@ ProbeQA gives coding agents a repeatable QA loop: inspect the diff, generate bro
 
 If you want AI coding agents to prove browser behavior before pushing code, star/watch the repo and share feedback in [Discussions](https://github.com/codewiser-io/probeqa/discussions).
 
+![ProbeQA demo](docs/assets/probeqa-demo.gif)
+
 ## What This Is
 
 This is a local-first open-source npm CLI for any app repo configured in `probeqa.config.json`.

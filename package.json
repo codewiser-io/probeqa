@@ -42,6 +42,7 @@
     "src/",
     "test/",
     "examples/",
+    "docs/",
     "README.md",
     "AI_TESTER.md",
     "CONTRIBUTING.md",
