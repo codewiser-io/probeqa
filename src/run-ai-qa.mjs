@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getBrowserLaunchArgs } from './browser.mjs';
+import { readResponseStatus, responseLooksOk } from './responses.mjs';
 
 async function loadConfig(projectRoot) {
   const configPath = path.join(projectRoot, 'probeqa.config.json');
@@ -52,8 +53,13 @@ export function createExpect(page, pageErrors, networkFailures) {
       if (!found) throw new Error(`Expected visible text matching ${pattern}`);
     },
     responseOk(response, message) {
-      if (!response || !response.ok()) {
-        const status = response?.status() ?? 'no response';
+      if (!responseLooksOk(response)) {
+        throw new Error(`${message}: ${readResponseStatus(response)}`);
+      }
+    },
+    responseStatusIn(response, statuses, message) {
+      const status = readResponseStatus(response);
+      if (!statuses.includes(status)) {
         throw new Error(`${message}: ${status}`);
       }
     },
@@ -78,6 +84,7 @@ async function pageTextMatches(page, pattern) {
 }
 
 export { getBrowserLaunchArgs };
+export { readResponseStatus, responseLooksOk };
 
 export async function clickByText(page, pattern) {
   const handles = await page.$$('a, button, [role="button"], input[type="submit"]');

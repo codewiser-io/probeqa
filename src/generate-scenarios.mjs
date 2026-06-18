@@ -125,10 +125,14 @@ export function buildScenario(changes, flow) {
 
     await step('Probe backend-visible behavior', async () => {
       const response = await page.evaluate(async (url) => {
-        const result = await fetch(url, { credentials: 'include' });
-        return { status: result.status, ok: result.ok };
+        try {
+          const result = await fetch(url, { credentials: 'include' });
+          return { status: result.status, ok: result.ok };
+        } catch {
+          return null;
+        }
       }, \`\${backendUrl}${primaryApi}\`);
-      await expect.ok([200, 204, 401, 403, 404].includes(response.status), \`Unexpected API status: \${response.status}\`);
+      await expect.responseStatusIn(response, [200, 204, 401, 403, 404], 'Unexpected API status');
     });
   },
 };
