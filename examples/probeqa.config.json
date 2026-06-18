@@ -8,5 +8,6 @@
     }
   ],
   "scenariosDir": "probeqa/scenarios",
-  "artifactsDir": "probeqa/artifacts"
+  "artifactsDir": "probeqa/artifacts",
+  "runner": "puppeteer"
 }

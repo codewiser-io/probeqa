@@ -73,6 +73,7 @@ npx probeqa audit     # find routes without ProbeQA scenario coverage
 npx probeqa crawl     # crawl reachable same-origin pages into a route map
 npx probeqa generate  # write a generated scenario draft
 npx probeqa run       # headless
+npx probeqa run --runner playwright
 AI_QA_HEADLESS=false npx probeqa run
 npx probeqa list
 ```
@@ -143,6 +144,23 @@ npm run qa
 ```
 
 The generated scenario is a draft. The AI or developer should tighten it into real clicks, role states, and assertions before merging.
+
+## Runner Selection
+
+ProbeQA uses Puppeteer by default. Teams that standardize on Playwright can opt in per run or through config:
+
+```bash
+npx probeqa run --runner playwright
+PROBEQA_RUNNER=playwright npx probeqa crawl
+```
+
+```json
+{
+  "runner": "playwright"
+}
+```
+
+Playwright is optional. Install it in the consuming app with `npm install -D playwright`; ProbeQA does not add it as a required dependency.
 
 ## GitHub Actions Example
 

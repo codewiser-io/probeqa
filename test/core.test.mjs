@@ -13,6 +13,7 @@ import {
 } from '../src/audit.mjs';
 import { buildScenario, inferFlow, routeFromFrontendPage as generatedPageRoute } from '../src/generate-scenarios.mjs';
 import { normalizeUrl, scenarioFor, scenarioIdFor } from '../src/crawl.mjs';
+import { resolveRunnerName, runnerInstallMessage } from '../src/runners.mjs';
 import { getBrowserLaunchArgs } from '../src/run-ai-qa.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -96,6 +97,13 @@ test('browser launch args disable Chromium sandbox in CI', () => {
     getBrowserLaunchArgs({ CI: 'true', PROBEQA_NO_SANDBOX: 'false' }),
     []
   );
+});
+
+test('runner selection keeps Puppeteer default and Playwright optional', () => {
+  assert.equal(resolveRunnerName(), 'puppeteer');
+  assert.equal(resolveRunnerName('playwright'), 'playwright');
+  assert.match(runnerInstallMessage('playwright'), /npm install -D playwright/);
+  assert.throws(() => resolveRunnerName('selenium'), /Unsupported browser runner/);
 });
 
 test('CLI init, list, and audit work in a consuming app repo', async () => {
