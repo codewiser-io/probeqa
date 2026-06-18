@@ -5,6 +5,12 @@ import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getBrowserLaunchArgs } from './browser.mjs';
+import {
+  buildIgnoreRules,
+  filterIgnoredConsoleErrors,
+  filterIgnoredNetworkFailures,
+  networkFailureText,
+} from './ignore-rules.mjs';
 
 async function loadConfig(projectRoot) {
   const configPath = path.join(projectRoot, 'probeqa.config.json');
@@ -42,7 +48,8 @@ async function loadScenarios(projectRoot) {
   return scenarios;
 }
 
-export function createExpect(page, pageErrors, networkFailures) {
+export function createExpect(page, pageErrors, networkFailures, options = {}) {
+  const ignoreRules = buildIgnoreRules(options.ignore ?? {});
   return {
     ok(value, message) {
       if (!value) throw new Error(message);
@@ -58,12 +65,13 @@ export function createExpect(page, pageErrors, networkFailures) {
       }
     },
     noBrowserErrors() {
-      if (pageErrors.length > 0) {
-        throw new Error(`Browser errors:\n${pageErrors.join('\n')}`);
+      const badErrors = filterIgnoredConsoleErrors(pageErrors, ignoreRules);
+      if (badErrors.length > 0) {
+        throw new Error(`Browser errors:\n${badErrors.join('\n')}`);
       }
-      const badFailures = networkFailures.filter((failure) => !failure.url.includes('/_next/webpack-hmr'));
+      const badFailures = filterIgnoredNetworkFailures(networkFailures, ignoreRules);
       if (badFailures.length > 0) {
-        throw new Error(`Network failures:\n${badFailures.map((f) => `${f.method} ${f.url}: ${f.error}`).join('\n')}`);
+        throw new Error(`Network failures:\n${badFailures.map((failure) => networkFailureText(failure)).join('\n')}`);
       }
     },
   };
@@ -138,7 +146,7 @@ async function runScenario(puppeteer, scenario, options, projectRoot) {
     page,
     baseUrl: options.baseUrl.replace(/\/$/, ''),
     backendUrl: options.backendUrl.replace(/\/$/, ''),
-    expect: createExpect(page, pageErrors, networkFailures),
+    expect: createExpect(page, pageErrors, networkFailures, { ignore: config.ignore }),
     clickByText: (pattern) => clickByText(page, pattern),
     step: async (name, fn) => {
       const stepStartedAt = Date.now();

@@ -12,6 +12,7 @@ import {
   routeFromFrontendPage as auditPageRoute,
 } from '../src/audit.mjs';
 import { buildScenario, inferFlow, routeFromFrontendPage as generatedPageRoute } from '../src/generate-scenarios.mjs';
+import { buildIgnoreRules, filterIgnoredConsoleErrors, filterIgnoredNetworkFailures } from '../src/ignore-rules.mjs';
 import { normalizeUrl, scenarioFor, scenarioIdFor } from '../src/crawl.mjs';
 import { getBrowserLaunchArgs } from '../src/run-ai-qa.mjs';
 
@@ -95,6 +96,27 @@ test('browser launch args disable Chromium sandbox in CI', () => {
   assert.deepEqual(
     getBrowserLaunchArgs({ CI: 'true', PROBEQA_NO_SANDBOX: 'false' }),
     []
+  );
+});
+
+test('ignore rules filter configured console and network noise only', () => {
+  const rules = buildIgnoreRules({
+    ignore: {
+      console: ['ResizeObserver loop limit exceeded'],
+      network: ['/analytics\\.example\\.com/'],
+    },
+  });
+
+  assert.deepEqual(
+    filterIgnoredConsoleErrors(['ResizeObserver loop limit exceeded', 'real browser crash'], rules),
+    ['real browser crash']
+  );
+  assert.deepEqual(
+    filterIgnoredNetworkFailures([
+      { method: 'GET', url: 'https://analytics.example.com/pixel', error: 'blocked' },
+      { method: 'POST', url: 'https://app.test/api/save', error: 'net::ERR_FAILED' },
+    ], rules),
+    [{ method: 'POST', url: 'https://app.test/api/save', error: 'net::ERR_FAILED' }]
   );
 });
 
