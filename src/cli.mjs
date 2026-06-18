@@ -85,14 +85,15 @@ Usage:
   probeqa plan [--repo <name>]
   probeqa audit [--repo <name>]
   probeqa crawl [--baseUrl <url>] [--maxPages <n>] [--generate]
-  probeqa generate [--repo <name>]
-  probeqa run [--scenario <id>] [--baseUrl <url>]
+  probeqa generate [--repo <name>] [--refine] [--provider openai|anthropic|local]
+  probeqa run [--scenario <id>] [--baseUrl <url>] [--runner puppeteer|playwright]
   probeqa list
 
 Environment:
   AI_QA_HEADLESS=false   Run with a visible browser
   AI_QA_BASE_URL=<url>   Override frontend base URL
   AI_QA_BACKEND_URL=<url> Override backend base URL
+  PROBEQA_RUNNER=<name>  puppeteer or playwright
 `);
 }
 

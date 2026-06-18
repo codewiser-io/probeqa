@@ -8,5 +8,15 @@
     }
   ],
   "scenariosDir": "probeqa/scenarios",
-  "artifactsDir": "probeqa/artifacts"
+  "artifactsDir": "probeqa/artifacts",
+  "runner": "puppeteer",
+  "ignore": {
+    "console": [],
+    "network": []
+  },
+  "aiRefinement": {
+    "enabled": false,
+    "provider": "local",
+    "endpoint": "http://localhost:11434/refine"
+  }
 }

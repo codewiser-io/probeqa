@@ -1,25 +1,21 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getBrowserLaunchArgs } from './browser.mjs';
+import { loadConfig } from './config.mjs';
+import {
+  buildIgnoreRules,
+  filterIgnoredConsoleErrors,
+  filterIgnoredNetworkFailures,
+  networkFailureText,
+} from './ignore-rules.mjs';
+import { readResponseStatus, responseLooksOk } from './responses.mjs';
+import { loadBrowserRunner, resolveRunnerName } from './runners.mjs';
 
-async function loadConfig(projectRoot) {
-  const configPath = path.join(projectRoot, 'probeqa.config.json');
-  const raw = await fs.readFile(configPath, 'utf8').catch(() => null);
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
-    throw new Error(`Invalid probeqa.config.json: ${error.message}`);
-  }
-}
-
-async function loadScenarios(projectRoot) {
-  const config = await loadConfig(projectRoot);
-  const scenariosDir = path.resolve(projectRoot, config.scenariosDir ?? 'probeqa/scenarios');
+async function loadScenarios(projectRoot, config) {
+  const scenariosDir = path.resolve(projectRoot, config.scenariosDir);
   const entries = await fs.readdir(scenariosDir).catch((error) => {
     if (error.code === 'ENOENT') {
       throw new Error(`No scenarios directory found at ${path.relative(projectRoot, scenariosDir)}. Run "probeqa init" first.`);
@@ -42,7 +38,8 @@ async function loadScenarios(projectRoot) {
   return scenarios;
 }
 
-export function createExpect(page, pageErrors, networkFailures) {
+export function createExpect(page, pageErrors, networkFailures, options = {}) {
+  const ignoreRules = buildIgnoreRules(options.ignore ?? {});
   return {
     ok(value, message) {
       if (!value) throw new Error(message);
@@ -52,18 +49,24 @@ export function createExpect(page, pageErrors, networkFailures) {
       if (!found) throw new Error(`Expected visible text matching ${pattern}`);
     },
     responseOk(response, message) {
-      if (!response || !response.ok()) {
-        const status = response?.status() ?? 'no response';
+      if (!responseLooksOk(response)) {
+        throw new Error(`${message}: ${readResponseStatus(response)}`);
+      }
+    },
+    responseStatusIn(response, statuses, message) {
+      const status = readResponseStatus(response);
+      if (!statuses.includes(status)) {
         throw new Error(`${message}: ${status}`);
       }
     },
     noBrowserErrors() {
-      if (pageErrors.length > 0) {
-        throw new Error(`Browser errors:\n${pageErrors.join('\n')}`);
+      const badErrors = filterIgnoredConsoleErrors(pageErrors, ignoreRules);
+      if (badErrors.length > 0) {
+        throw new Error(`Browser errors:\n${badErrors.join('\n')}`);
       }
-      const badFailures = networkFailures.filter((failure) => !failure.url.includes('/_next/webpack-hmr'));
+      const badFailures = filterIgnoredNetworkFailures(networkFailures, ignoreRules);
       if (badFailures.length > 0) {
-        throw new Error(`Network failures:\n${badFailures.map((f) => `${f.method} ${f.url}: ${f.error}`).join('\n')}`);
+        throw new Error(`Network failures:\n${badFailures.map((failure) => networkFailureText(failure)).join('\n')}`);
       }
     },
   };
@@ -78,6 +81,7 @@ async function pageTextMatches(page, pattern) {
 }
 
 export { getBrowserLaunchArgs };
+export { readResponseStatus, responseLooksOk };
 
 export async function clickByText(page, pattern) {
   const handles = await page.$$('a, button, [role="button"], input[type="submit"]');
@@ -107,16 +111,14 @@ export async function clickByText(page, pattern) {
   return null;
 }
 
-async function runScenario(puppeteer, scenario, options, projectRoot) {
-  const config = await loadConfig(projectRoot);
-  const artifactsDir = path.resolve(projectRoot, config.artifactsDir ?? 'probeqa/artifacts');
+async function runScenario(browserRunner, scenario, options, projectRoot, config) {
+  const artifactsDir = path.resolve(projectRoot, config.artifactsDir);
   const headless = options.headless !== 'false';
-  const browser = await puppeteer.launch({
+  const { browser, page } = await browserRunner.launch({
     headless,
     args: getBrowserLaunchArgs(),
-    defaultViewport: { width: 1440, height: 1000 },
+    viewport: { width: 1440, height: 1000 },
   });
-  const page = await browser.newPage();
 
   const pageErrors = [];
   const networkFailures = [];
@@ -128,7 +130,7 @@ async function runScenario(puppeteer, scenario, options, projectRoot) {
     networkFailures.push({
       method: request.method(),
       url: request.url(),
-      error: request.failure()?.errorText ?? 'unknown failure',
+      error: requestFailureText(request),
     });
   });
 
@@ -138,7 +140,7 @@ async function runScenario(puppeteer, scenario, options, projectRoot) {
     page,
     baseUrl: options.baseUrl.replace(/\/$/, ''),
     backendUrl: options.backendUrl.replace(/\/$/, ''),
-    expect: createExpect(page, pageErrors, networkFailures),
+    expect: createExpect(page, pageErrors, networkFailures, { ignore: config.ignore }),
     clickByText: (pattern) => clickByText(page, pattern),
     step: async (name, fn) => {
       const stepStartedAt = Date.now();
@@ -168,17 +170,10 @@ async function runScenario(puppeteer, scenario, options, projectRoot) {
   }
 }
 
-async function loadPuppeteer(projectRoot) {
-  const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
-  try {
-    return (await import('puppeteer')).default;
-  } catch {
-    try {
-      return projectRequire('puppeteer');
-    } catch (error) {
-      throw new Error(`Puppeteer is not installed. Run "npm install -D probeqa". Original error: ${error.message}`);
-    }
-  }
+function requestFailureText(request) {
+  const failure = request.failure?.();
+  if (typeof failure === 'string') return failure;
+  return failure?.errorText ?? 'unknown failure';
 }
 
 export async function main(argv = process.argv.slice(2), projectRoot = process.cwd()) {
@@ -191,10 +186,12 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
       baseUrl: { type: 'string', default: process.env.AI_QA_BASE_URL ?? 'http://localhost:3000' },
       backendUrl: { type: 'string', default: process.env.AI_QA_BACKEND_URL ?? 'http://localhost:3001' },
       headless: { type: 'string', default: process.env.AI_QA_HEADLESS ?? 'true' },
+      runner: { type: 'string', default: process.env.PROBEQA_RUNNER },
     },
   });
+  const config = await loadConfig(projectRoot);
   const selectedScenario = values.scenario ?? positionals[0];
-  const scenarios = await loadScenarios(projectRoot);
+  const scenarios = await loadScenarios(projectRoot, config);
   const runnable = selectedScenario
     ? scenarios.filter((scenario) => scenario.id === selectedScenario || scenario.file === selectedScenario)
     : scenarios;
@@ -210,12 +207,13 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
     throw new Error(`No scenario matched ${selectedScenario}`);
   }
 
-  const puppeteer = await loadPuppeteer(projectRoot);
+  const runnerName = resolveRunnerName(values.runner ?? config.runner);
+  const browserRunner = await loadBrowserRunner(projectRoot, runnerName);
 
   const results = [];
   for (const scenario of runnable) {
     console.log(`\n[${scenario.id}] ${scenario.title}`);
-    const result = await runScenario(puppeteer, scenario, values, projectRoot);
+    const result = await runScenario(browserRunner, scenario, values, projectRoot, config);
     results.push({ scenario, result });
     const marker = result.status === 'passed' ? 'PASS' : 'FAIL';
     console.log(`${marker} ${scenario.id} (${result.ms}ms)`);

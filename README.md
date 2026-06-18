@@ -8,6 +8,8 @@ ProbeQA gives coding agents a repeatable QA loop: inspect the diff, generate bro
 
 If you want AI coding agents to prove browser behavior before pushing code, star/watch the repo and share feedback in [Discussions](https://github.com/codewiser-io/probeqa/discussions).
 
+![ProbeQA demo](docs/assets/probeqa-demo.gif)
+
 ## What This Is
 
 This is a local-first open-source npm CLI for any app repo configured in `probeqa.config.json`.
@@ -61,7 +63,17 @@ Configure target repos in `probeqa.config.json`, then start the target app stack
     }
   ],
   "scenariosDir": "probeqa/scenarios",
-  "artifactsDir": "probeqa/artifacts"
+  "artifactsDir": "probeqa/artifacts",
+  "runner": "puppeteer",
+  "ignore": {
+    "console": [],
+    "network": []
+  },
+  "aiRefinement": {
+    "enabled": false,
+    "provider": "local",
+    "endpoint": "http://localhost:11434/refine"
+  }
 }
 ```
 
@@ -72,7 +84,9 @@ npx probeqa plan      # inspect changed files and proposed QA surface
 npx probeqa audit     # find routes without ProbeQA scenario coverage
 npx probeqa crawl     # crawl reachable same-origin pages into a route map
 npx probeqa generate  # write a generated scenario draft
+npx probeqa generate --refine --provider openai
 npx probeqa run       # headless
+npx probeqa run --runner playwright
 AI_QA_HEADLESS=false npx probeqa run
 npx probeqa list
 ```
@@ -143,6 +157,30 @@ npm run qa
 ```
 
 The generated scenario is a draft. The AI or developer should tighten it into real clicks, role states, and assertions before merging.
+
+## Configuration Options
+
+`runner` defaults to `puppeteer`. Set `"runner": "playwright"` or pass `--runner playwright` to use Playwright without adding it as a required ProbeQA dependency. Install it in the app repo with `npm install -D playwright`.
+
+`ignore.console` and `ignore.network` accept substring strings or `/regex/` strings for known benign browser noise. Defaults remain strict, with the existing Next.js HMR network exception kept out of failure reports.
+
+`aiRefinement` is disabled by default. Enable it to refine generated scenario drafts through `openai`, `anthropic`, or a `local` HTTP endpoint. Missing API keys or unavailable local endpoints skip refinement and keep the deterministic generated scenario.
+
+```json
+{
+  "ignore": {
+    "console": ["ResizeObserver loop limit exceeded"],
+    "network": ["/analytics\\.example\\.com/"]
+  },
+  "aiRefinement": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-4.1-mini"
+  }
+}
+```
+
+OpenAI uses `OPENAI_API_KEY` by default. Anthropic uses `ANTHROPIC_API_KEY`. Local adapters use `aiRefinement.endpoint` or `PROBEQA_LOCAL_AI_URL`.
 
 ## GitHub Actions Example
 

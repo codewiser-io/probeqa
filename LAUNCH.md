@@ -55,6 +55,12 @@ Topics:
 
 ai-qa, ai-agents, puppeteer, e2e-testing, browser-testing, test-generation, qa-automation, developer-tools, cli, open-source
 
+## Demo Asset
+
+Use the README demo GIF when sharing the launch:
+
+`docs/assets/probeqa-demo.gif`
+
 ## Show HN Draft
 
 Title:
@@ -190,7 +196,7 @@ https://github.com/codewiser-io/probeqa/discussions/5
 ## Submission Checklist
 
 - [ ] Fix npm publish for latest version.
-- [ ] Add a short demo GIF or screen recording.
+- [x] Add a short demo GIF or screen recording.
 - [ ] Add GitHub social preview image.
 - [ ] Add 3-5 GitHub issues labeled `good first issue`.
 - [x] Enable GitHub Discussions.

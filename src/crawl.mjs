@@ -1,25 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getBrowserLaunchArgs } from './browser.mjs';
-
-async function loadConfig(projectRoot) {
-  const configPath = path.join(projectRoot, 'probeqa.config.json');
-  const raw = await fs.readFile(configPath, 'utf8').catch(() => null);
-  if (!raw) throw new Error('No probeqa.config.json found. Run "probeqa init" first.');
-  try {
-    const config = JSON.parse(raw);
-    return {
-      projects: Array.isArray(config.projects) ? config.projects : [],
-      scenariosDir: config.scenariosDir ?? 'probeqa/scenarios',
-      artifactsDir: config.artifactsDir ?? 'probeqa/artifacts',
-    };
-  } catch (error) {
-    throw new Error(`Invalid probeqa.config.json: ${error.message}`);
-  }
-}
+import { loadConfig } from './config.mjs';
+import { readResponseStatus } from './responses.mjs';
+import { loadBrowserRunner, resolveRunnerName } from './runners.mjs';
 
 export function normalizeUrl(rawUrl) {
   const url = new URL(rawUrl);
@@ -61,19 +47,6 @@ export function scenarioFor(pageInfo, baseUrl) {
   };
 }
 
-async function loadPuppeteer(projectRoot) {
-  const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
-  try {
-    return (await import('puppeteer')).default;
-  } catch {
-    try {
-      return projectRequire('puppeteer');
-    } catch (error) {
-      throw new Error(`Puppeteer is not installed. Run "npm install -D probeqa". Original error: ${error.message}`);
-    }
-  }
-}
-
 export async function main(argv = process.argv.slice(2), projectRoot = process.cwd()) {
   const { values } = parseArgs({
     args: argv,
@@ -83,14 +56,16 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
       depth: { type: 'string', default: '2' },
       generate: { type: 'boolean', default: false },
       headless: { type: 'string', default: process.env.AI_QA_HEADLESS ?? 'true' },
+      runner: { type: 'string', default: process.env.PROBEQA_RUNNER },
       out: { type: 'string' },
     },
   });
-  const config = await loadConfig(projectRoot);
+  const config = await loadConfig(projectRoot, { required: true });
   const baseUrl = values.baseUrl ?? config.projects.find((project) => project.baseUrl)?.baseUrl;
   if (!baseUrl) throw new Error('No base URL found. Pass --baseUrl or set a project baseUrl in probeqa.config.json.');
 
-  const puppeteer = await loadPuppeteer(projectRoot);
+  const runnerName = resolveRunnerName(values.runner ?? config.runner);
+  const browserRunner = await loadBrowserRunner(projectRoot, runnerName);
 
   const maxPages = Number.parseInt(values.maxPages, 10);
   const maxDepth = Number.parseInt(values.depth, 10);
@@ -104,12 +79,11 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
 
   await fs.mkdir(artifactsDir, { recursive: true });
 
-  const browser = await puppeteer.launch({
+  const { browser, page } = await browserRunner.launch({
     headless: values.headless !== 'false',
     args: getBrowserLaunchArgs(),
-    defaultViewport: { width: 1440, height: 1000 },
+    viewport: { width: 1440, height: 1000 },
   });
-  const page = await browser.newPage();
 
   try {
     while (queue.length > 0 && pages.length < maxPages) {
@@ -125,8 +99,8 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
         if (message.type() === 'error') pageErrors.push(message.text());
       });
 
-      const response = await page.goto(current.url, { waitUntil: 'networkidle2', timeout: 30000 }).catch((error) => ({ error }));
-      const status = typeof response?.status === 'function' ? response.status() : null;
+      const response = await page.goto(current.url, { waitUntil: 'networkidle2', timeout: 30000 }).catch(() => null);
+      const status = readResponseStatus(response);
       const title = await page.title().catch(() => '');
       const snapshot = await page.evaluate(() => {
         const visibleText = (document.body?.innerText ?? '').trim().slice(0, 1000);
@@ -192,7 +166,7 @@ export async function main(argv = process.argv.slice(2), projectRoot = process.c
     const scenariosDir = path.resolve(projectRoot, config.scenariosDir);
     await fs.mkdir(scenariosDir, { recursive: true });
     let written = 0;
-    for (const pageInfo of pages.filter((item) => item.status && item.status < 400)) {
+    for (const pageInfo of pages.filter((item) => typeof item.status === 'number' && item.status < 400)) {
       const scenario = scenarioFor(pageInfo, root);
       const scenarioPath = path.join(scenariosDir, scenario.fileName);
       const exists = await fs.stat(scenarioPath).then(() => true).catch(() => false);
