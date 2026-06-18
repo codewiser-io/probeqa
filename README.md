@@ -61,7 +61,11 @@ Configure target repos in `probeqa.config.json`, then start the target app stack
     }
   ],
   "scenariosDir": "probeqa/scenarios",
-  "artifactsDir": "probeqa/artifacts"
+  "artifactsDir": "probeqa/artifacts",
+  "ignore": {
+    "console": [],
+    "network": []
+  }
 }
 ```
 
@@ -143,6 +147,21 @@ npm run qa
 ```
 
 The generated scenario is a draft. The AI or developer should tighten it into real clicks, role states, and assertions before merging.
+
+## Ignore Rules
+
+ProbeQA fails on browser console errors and network failures by default. Use `ignore.console` and `ignore.network` only for known benign noise. Entries can be substring strings or `/regex/` strings.
+
+```json
+{
+  "ignore": {
+    "console": ["ResizeObserver loop limit exceeded"],
+    "network": ["/analytics\\.example\\.com/"]
+  }
+}
+```
+
+Defaults remain strict. The existing Next.js HMR network exception is still kept out of failure reports.
 
 ## GitHub Actions Example
 

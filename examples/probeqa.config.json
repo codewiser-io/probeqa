@@ -8,5 +8,9 @@
     }
   ],
   "scenariosDir": "probeqa/scenarios",
-  "artifactsDir": "probeqa/artifacts"
+  "artifactsDir": "probeqa/artifacts",
+  "ignore": {
+    "console": [],
+    "network": []
+  }
 }
